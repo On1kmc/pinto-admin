@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${user.name} + ' — Pinto Admin'">Пользователь — Pinto Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/public/css/style.css}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="app-nav">
+    <a href="/" class="app-nav-brand">
+        <span class="icon">🤖</span>
+        Pinto Admin
+    </a>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="color:rgba(255,255,255,.45);font-size:13px;" sec:authentication="name"></span>
+        <a th:href="@{/accounts}" id="accountsLink"
+           th:data-accounts-allowed="${isMainUser}"
+           class="btn btn-outline-light btn-sm">
+            <i class="bi bi-people me-1"></i>Учётные записи
+        </a>
+        <a th:href="@{/}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>На главную
+        </a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <!--
+        data-user-id  — used by JS to call /api/users?id=X
+        data-is-admin — used by JS to toggle state without re-fetching
+    -->
+    <div class="user-hero"
+         th:data-user-id="${user.userId}"
+         th:data-is-admin="${isAdmin}">
+
+        <div class="user-hero-name" th:text="${user.name}">Имя пользователя</div>
+        <div class="user-hero-sub">
+            <a th:href="@{https://t.me/{u}(u=${user.username})}"
+               th:text="'@' + ${user.username}"
+               target="_blank"
+               class="tg-link-white"></a>
+            &nbsp;·&nbsp;
+            <span th:text="'ID: ' + ${user.userId}"></span>
+        </div>
+        <!-- id="adminBadge" — toggled by JS on changestatus -->
+        <div id="adminBadge"
+             class="badge-admin"
+             th:style="${isAdmin} ? '' : 'display:none'">
+            <i class="bi bi-shield-fill-check"></i> Администратор
+        </div>
+    </div>
+
+    <!-- Info + Actions row -->
+    <div class="row g-3 mb-3">
+
+        <!-- Stats card -->
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span class="card-title"><i class="bi bi-bar-chart"></i> Статистика</span>
+                </div>
+                <div class="card-body">
+                    <ul class="info-list">
+                        <li>
+                            <span class="lbl"><i class="bi bi-images"></i> Баланс фото</span>
+                            <!-- id="statCount" — updated by JS after grant -->
+                            <span class="val" id="statCount" th:text="${user.count} + ' шт.'"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-gift"></i> Бонусных фото</span>
+                            <!-- id="statBonus" — updated by JS after grant; JSON field: "bonuses" -->
+                            <span class="val" id="statBonus" th:text="${user.bonus_count} + ' шт.'"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-person-bounding-box"></i> Аватаров создано</span>
+                            <!-- id="statAvatars" — updated by JS after avatar add -->
+                            <span class="val" id="statAvatars" th:text="${user.avatars} + ' шт.'"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-unlock"></i> Доступно аватаров</span>
+                            <!-- id="statAvatarsAvailable" — updated by JS after avatar add -->
+                            <span class="val" id="statAvatarsAvailable" th:text="${user.avatarsAvailable} + ' шт.'"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-graph-up"></i> Сегмент</span>
+                            <span class="val" th:text="${user.segment != null ? user.segment.text : '—'}"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-calendar-event"></i> Дата регистрации</span>
+                            <span class="val" th:text="${user.startDate != null ? #temporals.format(user.startDate, 'dd.MM.yyyy') : '—'}"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-people"></i> Рефералы (1 ур.)</span>
+                            <span class="val" th:text="${user.ref1Count}"></span>
+                        </li>
+                        <li>
+                            <span class="lbl"><i class="bi bi-people"></i> Рефералы (2 ур.)</span>
+                            <span class="val" th:text="${user.ref2Count}"></span>
+                        </li>
+                        <li th:if="${user.marketSource != null and !#strings.isEmpty(user.marketSource)}">
+                            <span class="lbl"><i class="bi bi-funnel"></i> Источник</span>
+                            <span class="val" th:text="${user.marketSource}"></span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions card -->
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span class="card-title"><i class="bi bi-sliders"></i> Управление</span>
+                </div>
+                <div class="card-body">
+                    <div class="action-group">
+
+                        <!-- Change admin status
+                             id="statusForm" — intercepted by JS
+                             id="statusBtn"  — button text toggled by JS -->
+                        <div class="action-block" sec:authorize="hasRole('MAIN')">
+                            <div class="action-block-title">Роль пользователя</div>
+                            <form id="statusForm">
+                                <input type="hidden" name="id" th:value="${user.userId}">
+                                <button type="submit" id="statusBtn"
+                                        th:class="${isAdmin} ? 'btn btn-outline-danger' : 'btn btn-outline-primary'">
+                                    <!-- text set by JS on toggle; initial value from server -->
+                                    <span th:if="${isAdmin}">
+                                        <i class="bi bi-shield-x me-1"></i>Убрать из администраторов
+                                    </span>
+                                    <span th:if="${!isAdmin}">
+                                        <i class="bi bi-shield-plus me-1"></i>Добавить в администраторы
+                                    </span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Bot rights — visible for all roles, editable only by MAIN
+                             id="rightsBlock" — shown/hidden by JS on role toggle
+                             id="rightsList"  — filled by JS via /api/rightslist
+                             id="saveRightsBtn" present only for MAIN (sec:authorize) -->
+                        <div class="action-block" id="rightsBlock"
+                             th:attr="data-editable=${isMainUser}"
+                             th:style="${isAdmin} ? '' : 'display:none'">
+                            <div class="action-block-title">Права в боте</div>
+                            <p id="rightsInfo" style="font-size:11px;color:var(--muted);margin:0 0 10px;">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Отметьте нужные права и нажмите «Сохранить». Список заменяет текущие права полностью.
+                            </p>
+                            <div id="rightsList"
+                                 style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+                                <span style="color:var(--muted);font-size:13px;">Загрузка…</span>
+                            </div>
+                            <!-- Кнопка сохранения — только для MAIN -->
+                            <button type="button" id="saveRightsBtn"
+                                    sec:authorize="hasRole('MAIN')"
+                                    class="btn btn-primary btn-sm mt-3">
+                                <i class="bi bi-check2 me-1"></i>Сохранить права
+                            </button>
+                        </div>
+
+                        <!-- Grant bonuses / photos
+                             id="grantForm" — intercepted by JS -->
+                        <div class="action-block">
+                            <div class="action-block-title">Начислить фото и бонусы</div>
+                            <form id="grantForm">
+                                <input type="hidden" name="id" th:value="${user.userId}">
+                                <input type="hidden" name="avatars" value="0">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label for="bonusInput" class="form-label">Бонусных фото</label>
+                                        <input type="number" id="bonusInput" name="bonus" class="form-control" value="0" min="0">
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="countInput" class="form-label">Обычных фото</label>
+                                        <input type="number" id="countInput" name="count" class="form-control" value="0" min="0">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-plus-circle me-1"></i>Начислить
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Add avatar slot
+                             id="avatarForm" — intercepted by JS -->
+                        <div class="action-block">
+                            <div class="action-block-title">Аватар</div>
+                            <form id="avatarForm">
+                                <input type="hidden" name="id" th:value="${user.userId}">
+                                <input type="hidden" name="avatars" value="1">
+                                <input type="hidden" name="count" value="0">
+                                <input type="hidden" name="bonus" value="0">
+                                <button type="submit" class="btn btn-secondary">
+                                    <i class="bi bi-person-bounding-box me-1"></i>Добавить слот аватара
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Delete user
+                             id="deleteForm" — intercepted by JS -->
+                        <div class="action-block" style="border-color:#fecaca; background:#fff5f5;">
+                            <div class="action-block-title" style="color:#ef4444">Опасная зона</div>
+                            <form id="deleteForm">
+                                <input type="hidden" name="id" th:value="${user.userId}">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash3 me-1"></i>Удалить пользователя
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Purchases table -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title"><i class="bi bi-receipt"></i> История оплат</span>
+            <span class="badge bg-secondary"
+                  th:text="${user.purchases != null ? #lists.size(user.purchases) : 0} + ' записей'"></span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Тип платежа</th>
+                    <th>Сумма</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${user.purchases == null or #lists.isEmpty(user.purchases)}">
+                    <td colspan="3" style="text-align:center; color:var(--muted); padding:28px;">
+                        <i class="bi bi-inbox" style="font-size:22px; display:block; margin-bottom:6px;"></i>
+                        Оплат нет
+                    </td>
+                </tr>
+                <tr th:each="purchase : ${user.purchases}">
+                    <td th:text="${#temporals.format(purchase.purchaseDate, 'dd.MM.yyyy г. HH:mm')}"></td>
+                    <td th:text="${purchase.payItemType}"></td>
+                    <td>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success"
+                              th:text="${purchase.amount} + ' ₽'"></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal fade" id="accessDeniedModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Доступ ограничен</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Раздел «Учётные записи» доступен только главным администраторам.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Текущие права пользователя — сериализуются Thymeleaf в JS-массив -->
+<script th:inline="javascript">
+    var currentRights = /*[[${user.rights}]]*/ null;
+</script>
+<script th:src="@{/public/js/app.js}"></script>
+</body>
+</html>

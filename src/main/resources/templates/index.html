@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinto Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/public/css/style.css}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="app-nav">
+    <a href="/" class="app-nav-brand">
+        <span class="icon">🤖</span>
+        Pinto Admin
+    </a>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="color:rgba(255,255,255,.45);font-size:13px;" sec:authentication="name"></span>
+        <a th:href="@{/accounts}" id="accountsLink"
+           th:data-accounts-allowed="${isMainUser}"
+           class="btn btn-outline-light btn-sm">
+            <i class="bi bi-people me-1"></i>Учётные записи
+        </a>
+        <a th:href="@{/admins}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-shield-check me-1"></i>Администраторы
+        </a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-label">Всего</div>
+            <div class="stat-value" th:text="${usersSize}">0</div>
+        </div>
+        <div class="stat-card c-blue">
+            <div class="stat-icon" style="color:#3b82f6"><i class="bi bi-credit-card-fill"></i></div>
+            <div class="stat-label">Оплатили</div>
+            <div class="stat-value" th:text="${payed}">0</div>
+            <div class="stat-pct" th:text="${#numbers.formatPercent((payed * 1.0 / usersSize), 1, 2)}"></div>
+        </div>
+        <div class="stat-card c-green">
+            <div class="stat-icon" style="color:#10b981"><i class="bi bi-person-check-fill"></i></div>
+            <div class="stat-label">Активных</div>
+            <div class="stat-value" th:text="${active}">0</div>
+            <div class="stat-pct" th:text="${#numbers.formatPercent((active * 1.0 / payed), 1, 2)}"></div>
+        </div>
+        <div class="stat-card c-red">
+            <div class="stat-icon" style="color:#ef4444"><i class="bi bi-person-x-fill"></i></div>
+            <div class="stat-label">Неактивных</div>
+            <div class="stat-value" th:text="${inactive}">0</div>
+            <div class="stat-pct" th:text="${#numbers.formatPercent((inactive * 1.0 / payed), 1, 2)}"></div>
+        </div>
+        <div class="stat-card c-purple">
+            <div class="stat-icon" style="color:#8b5cf6"><i class="bi bi-images"></i></div>
+            <div class="stat-label">Баланс фото</div>
+            <div class="stat-value" th:text="${sum}">0</div>
+        </div>
+        <div class="stat-card c-orange">
+            <div class="stat-icon" style="color:#f59e0b"><i class="bi bi-person-bounding-box"></i></div>
+            <div class="stat-label">Несозд. аватары</div>
+            <div class="stat-value" th:text="${avatars}">0</div>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <p class="card-title mb-3"><i class="bi bi-search"></i> Поиск пользователя</p>
+            <form th:method="GET" th:action="@{/users}" id="searchForm">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label for="searchId" class="form-label">ID пользователя</label>
+                        <input type="number" id="searchId" name="id" class="form-control" placeholder="Например: 123456789">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="searchUsername" class="form-label">Username</label>
+                        <input type="text" id="searchUsername" name="username" class="form-control" placeholder="@username">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search me-1"></i>Найти
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users table -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title"><i class="bi bi-list-ul"></i> Список пользователей</span>
+            <!-- Pagination -->
+            <nav>
+                <ul class="pagination pagination-sm">
+                    <li class="page-item" th:if="${page} > 1">
+                        <a class="page-link" th:href="@{/?page=1}">1</a>
+                    </li>
+                    <li class="page-item" th:if="${page} > 2">
+                        <a class="page-link" th:href="@{/?page=2}">2</a>
+                    </li>
+                    <li class="page-item disabled" th:if="${page} > 5">
+                        <span class="page-link">…</span>
+                    </li>
+                    <li class="page-item" th:if="${page} > 4">
+                        <a class="page-link"
+                           th:href="@{/?page={p}(p=${page - 2})}"
+                           th:text="${page - 2}"></a>
+                    </li>
+                    <li class="page-item" th:if="${page} > 4">
+                        <a class="page-link"
+                           th:href="@{/?page={p}(p=${page - 1})}"
+                           th:text="${page - 1}"></a>
+                    </li>
+                    <li class="page-item active">
+                        <span class="page-link" th:text="${page}"></span>
+                    </li>
+                    <li class="page-item" th:if="${page} * 100 < ${usersSize - 100}">
+                        <a class="page-link"
+                           th:href="@{/?page={p}(p=${page + 1})}"
+                           th:text="${page + 1}"></a>
+                    </li>
+                    <li class="page-item" th:if="${page} * 100 < ${usersSize - 200}">
+                        <a class="page-link"
+                           th:href="@{/?page={p}(p=${page + 2})}"
+                           th:text="${page + 2}"></a>
+                    </li>
+                    <li class="page-item disabled" th:if="${page} * 100 < ${usersSize - 400}">
+                        <span class="page-link">…</span>
+                    </li>
+                    <li class="page-item" th:if="${page} * 100 < ${usersSize - 400}">
+                        <a class="page-link"
+                           th:href="@{/?page={p}(p=${usersSize / 100 - 1})}"
+                           th:text="${usersSize / 100 - 1}"></a>
+                    </li>
+                    <li class="page-item"
+                        th:if="${page} * 100 < ${usersSize - 400} or ${page} * 100 < ${usersSize - 300}">
+                        <a class="page-link"
+                           th:href="@{/?page={p}(p=${usersSize / 100})}"
+                           th:text="${usersSize / 100}"></a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Имя</th>
+                    <th>Баланс</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="user : ${users}">
+                    <td style="color:var(--muted)" th:text="${user.userId}"></td>
+                    <td>
+                        <a th:href="@{https://t.me/{u}(u=${user.username})}"
+                           th:text="${user.username}"
+                           target="_blank"
+                           class="tg-link"></a>
+                    </td>
+                    <td th:text="${user.name}"></td>
+                    <td>
+                        <span class="badge bg-light text-dark border" th:text="${user.count} + ' фото'"></span>
+                    </td>
+                    <td style="text-align:right">
+                        <a th:href="@{/users?id={id}(id=${user.userId})}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrow-right-circle me-1"></i>Открыть
+                        </a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal fade" id="accessDeniedModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Доступ ограничен</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Раздел «Учётные записи» доступен только главным администраторам.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/public/js/app.js}"></script>
+</body>
+</html>

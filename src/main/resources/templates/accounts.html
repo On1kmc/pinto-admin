@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учётные записи — Pinto Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/public/css/style.css}">
+</head>
+<body>
+
+<nav class="app-nav">
+    <a href="/" class="app-nav-brand">
+        <span class="icon">🤖</span>
+        Pinto Admin
+    </a>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="color:rgba(255,255,255,.5);font-size:13px;" sec:authentication="name"></span>
+        <a th:href="@{/}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>На главную
+        </a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <!-- Error banner -->
+    <div th:if="${param.error != null}" class="alert alert-warning mb-3" style="border-radius:8px;">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <span th:if="${param.error[0] == 'exists'}">Пользователь с таким логином уже существует.</span>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0" style="font-weight:700;">
+            <i class="bi bi-people me-2"></i>Учётные записи администраторов
+        </h5>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-person-plus me-1"></i>Добавить
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>Логин</th>
+                    <th>Роль</th>
+                    <th>Изменить роль</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="user : ${users}">
+                    <td style="vertical-align:middle;">
+                        <span th:text="${user.username}" style="font-weight:600;"></span>
+                        <span th:if="${user.username == currentUsername}"
+                              class="badge bg-secondary ms-2" style="font-size:10px;">Вы</span>
+                    </td>
+                    <td style="vertical-align:middle;">
+                        <span th:if="${user.role.name() == 'MAIN'}"
+                              class="badge"
+                              style="background:#4f46e5;font-size:12px;">Главная</span>
+                        <span th:if="${user.role.name() == 'REGULAR'}"
+                              class="badge bg-secondary"
+                              style="font-size:12px;">Обычная</span>
+                    </td>
+                    <!-- Role change (disabled for self) -->
+                    <td style="vertical-align:middle;">
+                        <form th:if="${user.username != currentUsername}"
+                              th:action="@{/accounts/changerole}" method="POST"
+                              class="d-flex gap-2 align-items-center">
+                            <input type="hidden" name="id" th:value="${user.id}">
+                            <select name="role" class="form-select form-select-sm" style="width:130px;">
+                                <option value="MAIN"    th:selected="${user.role.name() == 'MAIN'}">Главная</option>
+                                <option value="REGULAR" th:selected="${user.role.name() == 'REGULAR'}">Обычная</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-check2"></i>
+                            </button>
+                        </form>
+                        <span th:if="${user.username == currentUsername}" style="color:var(--muted);font-size:13px;">—</span>
+                    </td>
+                    <!-- Actions -->
+                    <td style="vertical-align:middle;text-align:right;">
+                        <div th:if="${user.username != currentUsername}" class="d-flex gap-2 justify-content-end">
+                            <!-- Change password -->
+                            <button class="btn btn-sm btn-outline-secondary btn-pwd"
+                                    th:data-user-id="${user.id}"
+                                    th:data-username="${user.username}"
+                                    data-bs-toggle="modal" data-bs-target="#pwdModal">
+                                <i class="bi bi-key me-1"></i>Пароль
+                            </button>
+                            <!-- Delete -->
+                            <form th:action="@{/accounts/delete}" method="POST" class="del-form">
+                                <input type="hidden" name="id" th:value="${user.id}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <span th:if="${user.username == currentUsername}" style="color:var(--muted);font-size:13px;">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Modal: Add user ─────────────────────────────────────────────────────── -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:12px;border:none;">
+            <form th:action="@{/accounts/create}" method="POST">
+                <div class="modal-header" style="border-bottom:1px solid var(--border);">
+                    <h6 class="modal-title fw-bold">
+                        <i class="bi bi-person-plus me-2"></i>Новая учётная запись
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+                    <div>
+                        <label class="form-label">Логин</label>
+                        <input type="text" name="username" class="form-control"
+                               placeholder="Введите логин" required autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="form-label">Пароль</label>
+                        <input type="password" name="password" class="form-control"
+                               placeholder="Введите пароль" required autocomplete="new-password">
+                    </div>
+                    <div>
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select">
+                            <option value="REGULAR">Обычная — работа с пользователями</option>
+                            <option value="MAIN">Главная — полный доступ</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--border);">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-person-plus me-1"></i>Создать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Change password ─────────────────────────────────────────────── -->
+<div class="modal fade" id="pwdModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:12px;border:none;">
+            <form th:action="@{/accounts/changepassword}" method="POST">
+                <input type="hidden" name="id" id="pwdUserId">
+                <div class="modal-header" style="border-bottom:1px solid var(--border);">
+                    <h6 class="modal-title fw-bold">
+                        <i class="bi bi-key me-2"></i>Смена пароля —
+                        <span id="pwdUsername" style="color:var(--primary);"></span>
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" name="password" id="pwdInput" class="form-control"
+                           placeholder="Введите новый пароль" required autocomplete="new-password">
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--border);">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check2 me-1"></i>Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Передать userId и имя в модал смены пароля
+    document.querySelectorAll('.btn-pwd').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.getElementById('pwdUserId').value  = this.dataset.userId;
+            document.getElementById('pwdUsername').textContent = this.dataset.username;
+            document.getElementById('pwdInput').value = '';
+        });
+    });
+
+    // Подтверждение удаления учётной записи
+    document.querySelectorAll('.del-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            if (!confirm('Удалить учётную запись?')) e.preventDefault();
+        });
+    });
+</script>
+</body>
+</html>
