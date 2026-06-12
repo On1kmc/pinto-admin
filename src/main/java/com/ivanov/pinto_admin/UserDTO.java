@@ -26,8 +26,8 @@ public class UserDTO {
     @JsonProperty("avatarsAvailable")
     private int avatarsAvailable;
 
-    @JsonProperty("purchases")
-    private List<PurchasesDTO> purchases;
+    @JsonProperty("balanceChanges")
+    private List<BalanceChangeDTO> balanceChanges;
     @JsonProperty("ref1Count")
     private int ref1Count;
     @JsonProperty("ref2Count")
@@ -55,7 +55,7 @@ public class UserDTO {
                 "userId=" + userId +
                 ", count=" + count +
                 ", avatars=" + avatars +
-                ", purchases=" + purchases +
+                ", balanceChanges=" + balanceChanges +
                 ", ref1Count=" + ref1Count +
                 ", ref2Count=" + ref2Count +
                 ", friendId=" + friendId +

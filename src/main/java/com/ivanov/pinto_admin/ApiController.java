@@ -128,6 +128,23 @@ public class ApiController {
     }
 
     /**
+     * Returns a page (50 items) of a user's balance-change history.
+     * Proxies the backend, which responds with { size, page, totalPages, changes: [...] }.
+     * Used by frontend "load more" pagination (page 1 is already embedded in users/get).
+     */
+    @SneakyThrows
+    @GetMapping("/balance-changes")
+    public ResponseEntity<String> getBalanceChanges(@RequestParam String id,
+                                                    @RequestParam(defaultValue = "1") int page) {
+        HttpGet get = new HttpGet(apiEndpoint + "/users/balance-changes?id=" + id + "&page=" + page);
+        get.setHeader("Authorization", API_TOKEN);
+        try (CloseableHttpResponse response = httpClient.execute(get)) {
+            String body = new String(response.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body);
+        }
+    }
+
+    /**
      * Sets bot rights for a user (full replacement).
      * Body: { "user_id": 123, "rights": ["RIGHT_A", "RIGHT_B"] }
      */

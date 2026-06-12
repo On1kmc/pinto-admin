@@ -81,8 +81,10 @@ public class UserController {
                             .build();
                     JsonNode jsonNode = mapper1.readTree(str);
                     UserDTO userDTO = mapper1.readValue(jsonNode.toString(), UserDTO.class);
-                    if (userDTO.getPurchases() != null) {
-                        userDTO.getPurchases().sort(Comparator.comparing(PurchasesDTO::getPurchaseDate).reversed());
+                    if (userDTO.getBalanceChanges() != null) {
+                        userDTO.getBalanceChanges().sort(Comparator.comparing(
+                                BalanceChangeDTO::getDateTime,
+                                Comparator.nullsLast(Comparator.naturalOrder())).reversed());
                     }
                     model.addAttribute("user", userDTO);
                     model.addAttribute("isAdmin", userDTO.getUserType() == UserType.ADMIN);

@@ -210,6 +210,89 @@
     }
 }());
 
+// ── Show-user page: balance-changes filter + pagination ──────────────────────
+(function () {
+    var table = document.getElementById('changesTable');
+    if (!table) return;
+
+    var body        = document.getElementById('changesBody');
+    var filterGroup = document.getElementById('changesFilter');
+    var loadBtn     = document.getElementById('loadMoreChanges');
+    var userId      = table.dataset.userId;
+    var currentFilter = 'ALL';
+
+    function applyFilter() {
+        Array.from(body.querySelectorAll('tr[data-credit-type]')).forEach(function (row) {
+            var ct = row.getAttribute('data-credit-type');
+            row.style.display = (currentFilter === 'ALL' || ct === currentFilter) ? '' : 'none';
+        });
+    }
+
+    function fmtDateTime(iso) {
+        if (!iso) return '';
+        var m = String(iso).match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        if (!m) return esc(iso);
+        return m[3] + '.' + m[2] + '.' + m[1] + ' г. ' + m[4] + ':' + m[5];
+    }
+
+    function creditEmoji(ct) {
+        if (ct === 'PHOTOS')  return ' ⚡️';
+        if (ct === 'BONUSES') return ' 🎁';
+        return '';
+    }
+
+    function changeRow(c) {
+        var cls = c.credits < 0 ? 'text-danger' : 'text-success';
+        var req = (c.requestType == null || c.requestType === '') ? '-' : esc(c.requestType);
+        return '<tr data-credit-type="' + esc(c.creditType) + '">'
+            + '<td>' + fmtDateTime(c.dateTime) + '</td>'
+            + '<td>' + esc(c.type) + '</td>'
+            + '<td>' + req + '</td>'
+            + '<td><span class="fw-semibold ' + cls + '">' + esc(c.credits) + creditEmoji(c.creditType) + '</span></td>'
+            + '</tr>';
+    }
+
+    if (filterGroup) {
+        filterGroup.addEventListener('click', function (e) {
+            var btn = e.target.closest('button[data-filter]');
+            if (!btn) return;
+            currentFilter = btn.dataset.filter;
+            Array.from(filterGroup.querySelectorAll('button')).forEach(function (b) {
+                var active = b === btn;
+                b.classList.toggle('btn-primary', active);
+                b.classList.toggle('btn-outline-secondary', !active);
+            });
+            applyFilter();
+        });
+    }
+
+    if (loadBtn) {
+        loadBtn.addEventListener('click', function () {
+            var page = parseInt(loadBtn.dataset.nextPage, 10);
+            setLoading(loadBtn, true);
+            fetch('/api/balance-changes?id=' + userId + '&page=' + page)
+                .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                .then(function (data) {
+                    var changes = data.changes || [];
+                    var empty = document.getElementById('changesEmpty');
+                    if (empty) empty.remove();
+                    changes.forEach(function (c) { body.insertAdjacentHTML('beforeend', changeRow(c)); });
+                    applyFilter();
+                    loadBtn.dataset.nextPage = String(page + 1);
+                    if (page >= (data.totalPages || page)) {
+                        loadBtn.remove();
+                    } else {
+                        setLoading(loadBtn, false);
+                    }
+                })
+                .catch(function () {
+                    setLoading(loadBtn, false);
+                    toast('Ошибка загрузки операций', 'err');
+                });
+        });
+    }
+}());
+
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
 function bindForm(id, handler) {

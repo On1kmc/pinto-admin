@@ -223,39 +223,51 @@
 
     </div>
 
-    <!-- Purchases table -->
+    <!-- Balance changes table -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title"><i class="bi bi-receipt"></i> История оплат</span>
-            <span class="badge bg-secondary"
-                  th:text="${user.purchases != null ? #lists.size(user.purchases) : 0} + ' записей'"></span>
+            <span class="card-title"><i class="bi bi-receipt"></i> История операций</span>
+            <div class="btn-group btn-group-sm" role="group" id="changesFilter">
+                <button type="button" class="btn btn-primary" data-filter="ALL">Все</button>
+                <button type="button" class="btn btn-outline-secondary" data-filter="PHOTOS">⚡️ Фото</button>
+                <button type="button" class="btn btn-outline-secondary" data-filter="BONUSES">🎁 Бонусы</button>
+            </div>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="changesTable" th:data-user-id="${user.userId}">
                 <thead>
                 <tr>
                     <th>Дата</th>
-                    <th>Тип платежа</th>
-                    <th>Сумма</th>
+                    <th>Тип</th>
+                    <th>Тип запроса</th>
+                    <th>Кредиты</th>
                 </tr>
                 </thead>
-                <tbody>
-                <tr th:if="${user.purchases == null or #lists.isEmpty(user.purchases)}">
-                    <td colspan="3" style="text-align:center; color:var(--muted); padding:28px;">
+                <tbody id="changesBody">
+                <tr id="changesEmpty" th:if="${user.balanceChanges == null or #lists.isEmpty(user.balanceChanges)}">
+                    <td colspan="4" style="text-align:center; color:var(--muted); padding:28px;">
                         <i class="bi bi-inbox" style="font-size:22px; display:block; margin-bottom:6px;"></i>
-                        Оплат нет
+                        Операций нет
                     </td>
                 </tr>
-                <tr th:each="purchase : ${user.purchases}">
-                    <td th:text="${#temporals.format(purchase.purchaseDate, 'dd.MM.yyyy г. HH:mm')}"></td>
-                    <td th:text="${purchase.payItemType}"></td>
+                <tr th:each="change : ${user.balanceChanges}" th:attr="data-credit-type=${change.creditType}">
+                    <td th:text="${#temporals.format(change.dateTime, 'dd.MM.yyyy г. HH:mm')}"></td>
+                    <td th:text="${change.type}"></td>
+                    <td th:text="${change.requestType != null ? change.requestType : '-'}"></td>
                     <td>
-                        <span class="badge bg-success bg-opacity-10 text-success border border-success"
-                              th:text="${purchase.amount} + ' ₽'"></span>
+                        <span class="fw-semibold"
+                              th:classappend="${change.credits < 0} ? 'text-danger' : 'text-success'"
+                              th:text="${change.credits} + (${change.creditType} == 'PHOTOS' ? ' ⚡️' : (${change.creditType} == 'BONUSES' ? ' 🎁' : ''))"></span>
                     </td>
                 </tr>
                 </tbody>
             </table>
+        </div>
+        <div th:if="${user.balanceChanges != null and #lists.size(user.balanceChanges) == 50}"
+             style="text-align:center; padding:12px 16px;">
+            <button type="button" id="loadMoreChanges" class="btn btn-outline-primary btn-sm" data-next-page="2">
+                <i class="bi bi-arrow-down-circle me-1"></i>Загрузить ещё
+            </button>
         </div>
     </div>
 
