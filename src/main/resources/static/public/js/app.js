@@ -217,14 +217,19 @@
 
     var body        = document.getElementById('changesBody');
     var filterGroup = document.getElementById('changesFilter');
+    var dirGroup    = document.getElementById('directionFilter');
     var loadBtn     = document.getElementById('loadMoreChanges');
     var userId      = table.dataset.userId;
     var currentFilter = 'ALL';
+    var currentDirection = 'ALL';
 
     function applyFilter() {
         Array.from(body.querySelectorAll('tr[data-credit-type]')).forEach(function (row) {
-            var ct = row.getAttribute('data-credit-type');
-            row.style.display = (currentFilter === 'ALL' || ct === currentFilter) ? '' : 'none';
+            var ct  = row.getAttribute('data-credit-type');
+            var dir = row.getAttribute('data-direction');
+            var show = (currentFilter === 'ALL' || ct === currentFilter)
+                    && (currentDirection === 'ALL' || dir === currentDirection);
+            row.style.display = show ? '' : 'none';
         });
     }
 
@@ -242,22 +247,25 @@
     }
 
     function changeRow(c) {
-        var cls = c.credits < 0 ? 'text-danger' : 'text-success';
+        var cls = c.credits < 0 ? 'text-success' : 'text-danger';
+        var disp = (c.credits < 0 ? '+' : '') + (-c.credits);
         var req = (c.requestType == null || c.requestType === '') ? '-' : esc(c.requestType);
-        return '<tr data-credit-type="' + esc(c.creditType) + '">'
+        var dir = c.credits < 0 ? 'IN' : 'OUT';
+        return '<tr data-credit-type="' + esc(c.creditType) + '" data-direction="' + dir + '">'
             + '<td>' + fmtDateTime(c.dateTime) + '</td>'
             + '<td>' + esc(c.type) + '</td>'
             + '<td>' + req + '</td>'
-            + '<td><span class="fw-semibold ' + cls + '">' + esc(c.credits) + creditEmoji(c.creditType) + '</span></td>'
+            + '<td><span class="fw-semibold ' + cls + '">' + esc(disp) + creditEmoji(c.creditType) + '</span></td>'
             + '</tr>';
     }
 
-    if (filterGroup) {
-        filterGroup.addEventListener('click', function (e) {
-            var btn = e.target.closest('button[data-filter]');
+    function bindFilterGroup(group, dataKey, setter) {
+        if (!group) return;
+        group.addEventListener('click', function (e) {
+            var btn = e.target.closest('button[data-' + dataKey + ']');
             if (!btn) return;
-            currentFilter = btn.dataset.filter;
-            Array.from(filterGroup.querySelectorAll('button')).forEach(function (b) {
+            setter(btn.dataset[dataKey]);
+            Array.from(group.querySelectorAll('button')).forEach(function (b) {
                 var active = b === btn;
                 b.classList.toggle('btn-primary', active);
                 b.classList.toggle('btn-outline-secondary', !active);
@@ -265,6 +273,9 @@
             applyFilter();
         });
     }
+
+    bindFilterGroup(filterGroup, 'filter', function (v) { currentFilter = v; });
+    bindFilterGroup(dirGroup, 'direction', function (v) { currentDirection = v; });
 
     if (loadBtn) {
         loadBtn.addEventListener('click', function () {

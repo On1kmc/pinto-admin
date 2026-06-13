@@ -227,10 +227,17 @@
     <div class="card">
         <div class="card-header">
             <span class="card-title"><i class="bi bi-receipt"></i> История операций</span>
-            <div class="btn-group btn-group-sm" role="group" id="changesFilter">
-                <button type="button" class="btn btn-primary" data-filter="ALL">Все</button>
-                <button type="button" class="btn btn-outline-secondary" data-filter="PHOTOS">⚡️ Фото</button>
-                <button type="button" class="btn btn-outline-secondary" data-filter="BONUSES">🎁 Бонусы</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <div class="btn-group btn-group-sm" role="group" id="directionFilter">
+                    <button type="button" class="btn btn-primary" data-direction="ALL">Все</button>
+                    <button type="button" class="btn btn-outline-secondary" data-direction="IN">Пополнения</button>
+                    <button type="button" class="btn btn-outline-secondary" data-direction="OUT">Списания</button>
+                </div>
+                <div class="btn-group btn-group-sm" role="group" id="changesFilter">
+                    <button type="button" class="btn btn-primary" data-filter="ALL">Все</button>
+                    <button type="button" class="btn btn-outline-secondary" data-filter="PHOTOS">⚡️ Фото</button>
+                    <button type="button" class="btn btn-outline-secondary" data-filter="BONUSES">🎁 Бонусы</button>
+                </div>
             </div>
         </div>
         <div class="table-responsive">
@@ -250,14 +257,15 @@
                         Операций нет
                     </td>
                 </tr>
-                <tr th:each="change : ${user.balanceChanges}" th:attr="data-credit-type=${change.creditType}">
+                <tr th:each="change : ${user.balanceChanges}"
+                    th:attr="data-credit-type=${change.creditType},data-direction=${change.credits < 0 ? 'IN' : 'OUT'}">
                     <td th:text="${#temporals.format(change.dateTime, 'dd.MM.yyyy г. HH:mm')}"></td>
                     <td th:text="${change.type}"></td>
                     <td th:text="${change.requestType != null ? change.requestType : '-'}"></td>
                     <td>
                         <span class="fw-semibold"
-                              th:classappend="${change.credits < 0} ? 'text-danger' : 'text-success'"
-                              th:text="${change.credits} + (${change.creditType} == 'PHOTOS' ? ' ⚡️' : (${change.creditType} == 'BONUSES' ? ' 🎁' : ''))"></span>
+                              th:classappend="${change.credits < 0} ? 'text-success' : 'text-danger'"
+                              th:text="${change.credits < 0 ? '+' : ''} + ${change.credits * -1} + ${change.creditType == 'PHOTOS' ? ' ⚡️' : (change.creditType == 'BONUSES' ? ' 🎁' : '')}"></span>
                     </td>
                 </tr>
                 </tbody>
