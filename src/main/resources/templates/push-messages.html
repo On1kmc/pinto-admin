@@ -106,7 +106,7 @@
                     <td th:text="${T(com.ivanov.pinto_admin.PushStage).valueOf(m.stage).text}"></td>
                     <td th:text="${m.gender != null ? T(com.ivanov.pinto_admin.PushGender).valueOf(m.gender).text : '—'}"></td>
                     <td th:text="${m.style != null ? T(com.ivanov.pinto_admin.PushStyle).valueOf(m.style).text : '—'}"></td>
-                    <td th:utext="${m.text}" class="text-preview"></td>
+                    <td><span class="text-preview" th:utext="${m.text}"></span></td>
                     <td th:text="${m.buttonText != null and !#strings.isEmpty(m.buttonText) ? m.buttonText : '—'}"></td>
                     <td>
                         <i class="bi bi-image" th:if="${m.media != null and !#strings.isEmpty(m.media)}" title="Медиа задано"></i>
