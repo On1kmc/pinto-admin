@@ -514,6 +514,44 @@ body {
 
 @keyframes btn-spin { to { transform: rotate(360deg); } }
 
+/* ── Push-messages: text preview & formatting toolbar ───── */
+.text-preview {
+    display: block;
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+.text-preview * {
+    display: inline;
+    white-space: nowrap;
+}
+
+.rte-toolbar .btn {
+    padding: 4px 10px;
+}
+
+.rte-editor {
+    min-height: 110px;
+    background: #fff;
+    cursor: text;
+}
+
+.rte-editor:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+
+.rte-editor blockquote {
+    margin: 4px 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--border);
+    color: var(--muted);
+}
+
 /* ── Divider ─────────────────────────────────── */
 hr.light {
     border: none;

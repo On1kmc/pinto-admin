@@ -1,12 +1,14 @@
 'use strict';
 
-// ── Accounts link: show modal for non-MAIN users ─────────────────────────────
+// ── MAIN-only links: show modal for non-MAIN users ────────────────────────────
 (function () {
-    var link = document.getElementById('accountsLink');
-    if (!link || link.dataset.accountsAllowed === 'true') return;
-    link.addEventListener('click', function (e) {
-        e.preventDefault();
-        new bootstrap.Modal(document.getElementById('accessDeniedModal')).show();
+    ['accountsLink', 'pushMessagesLink'].forEach(function (id) {
+        var link = document.getElementById(id);
+        if (!link || link.dataset.accountsAllowed === 'true') return;
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            new bootstrap.Modal(document.getElementById('accessDeniedModal')).show();
+        });
     });
 }());
 
@@ -362,3 +364,168 @@ function toast(msg, type) {
         setTimeout(function () { t.remove(); }, 300);
     }, 3000);
 }
+
+// ── Push-messages page ────────────────────────────────────────────────────────
+(function () {
+    var table = document.getElementById('pushMessagesTable');
+    if (!table) return;
+
+    document.querySelectorAll('.btn-edit-push').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var d = btn.dataset;
+            document.getElementById('editId').value = d.id;
+            document.getElementById('editForm').action = '/push-messages/' + d.id + '/update';
+            setVal('editCategory', d.category);
+            setVal('editStage', d.stage);
+            setVal('editGender', d.gender || '');
+            setVal('editStyle', d.style || '');
+            document.getElementById('editTextEditor').innerHTML = d.text || '';
+            setVal('editMedia', d.media || '');
+            setVal('editButtonText', d.buttonText || '');
+            setVal('editButtonPayload', d.buttonPayload || '');
+            document.getElementById('editEnabled').checked = d.enabled === 'true';
+        });
+    });
+
+    function setVal(id, v) {
+        var el = document.getElementById(id);
+        if (el) el.value = v;
+    }
+
+    document.querySelectorAll('.del-push-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            if (!confirm('Удалить дожим?')) e.preventDefault();
+        });
+    });
+
+    var stageFilter  = document.getElementById('stageFilter');
+    var genderFilter = document.getElementById('genderFilter');
+    var styleFilter  = document.getElementById('styleFilter');
+
+    function applyFilters() {
+        var s  = stageFilter  ? stageFilter.value  : '';
+        var g  = genderFilter ? genderFilter.value : '';
+        var st = styleFilter  ? styleFilter.value  : '';
+        table.querySelectorAll('tbody tr[data-stage]').forEach(function (row) {
+            var show = (!s  || row.dataset.stage  === s)
+                    && (!g  || row.dataset.gender === g)
+                    && (!st || row.dataset.style  === st);
+            row.style.display = show ? '' : 'none';
+        });
+    }
+    [stageFilter, genderFilter, styleFilter].forEach(function (el) {
+        if (el) el.addEventListener('change', applyFilters);
+    });
+
+    // ── WYSIWYG formatting toolbar (contenteditable + execCommand) ──────────────
+    // Enter creates a real <br> instead of browser-specific <div>/<p> wrapping —
+    // much simpler to normalize back into Telegram HTML on submit.
+    document.execCommand('defaultParagraphSeparator', false, 'br');
+
+    var TG_ALLOWED_TAGS = {
+        B: 'b', STRONG: 'b',
+        I: 'i', EM: 'i',
+        U: 'u',
+        S: 's', STRIKE: 's', DEL: 's',
+        A: 'a',
+        BLOCKQUOTE: 'blockquote'
+    };
+
+    // Telegram's HTML parse_mode has no <br> — line breaks must be literal '\n'.
+    function sanitizeTelegramHtml(html) {
+        var src = document.createElement('div');
+        src.innerHTML = html;
+        var out = document.createElement('div');
+        copyFormattedChildren(src, out);
+        return out.innerHTML.replace(/\n+$/, '');
+    }
+
+    function copyFormattedChildren(srcNode, targetParent) {
+        Array.prototype.forEach.call(srcNode.childNodes, function (node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                targetParent.appendChild(document.createTextNode(node.textContent));
+                return;
+            }
+            if (node.nodeType !== Node.ELEMENT_NODE) return;
+            if (node.tagName === 'BR') {
+                targetParent.appendChild(document.createTextNode('\n'));
+                return;
+            }
+            var tag = TG_ALLOWED_TAGS[node.tagName];
+            if (tag === 'a') {
+                var a = document.createElement('a');
+                var href = node.getAttribute('href');
+                if (href) a.setAttribute('href', href);
+                copyFormattedChildren(node, a);
+                targetParent.appendChild(a);
+                return;
+            }
+            if (tag) {
+                var el = document.createElement(tag);
+                copyFormattedChildren(node, el);
+                targetParent.appendChild(el);
+                return;
+            }
+            // Unknown/blocked element (div, p, span, li, ...) — unwrap it, keeping
+            // its children; if it was a block, preserve the line break as text.
+            var isBlock = /^(DIV|P|LI|UL|OL|H1|H2|H3|H4|H5|H6)$/.test(node.tagName);
+            copyFormattedChildren(node, targetParent);
+            if (isBlock) targetParent.appendChild(document.createTextNode('\n'));
+        });
+    }
+
+    document.querySelectorAll('.rte-toolbar').forEach(function (toolbar) {
+        var editor = document.getElementById(toolbar.dataset.editor);
+        if (!editor) return;
+        toolbar.querySelectorAll('button[data-cmd]').forEach(function (btn) {
+            btn.addEventListener('mousedown', function (e) {
+                e.preventDefault(); // keep selection/focus in the editor
+                editor.focus();
+                var cmd = btn.dataset.cmd;
+                if (cmd === 'createLink') {
+                    var url = prompt('Ссылка (https://...)', 'https://');
+                    if (!url) return;
+                    document.execCommand('createLink', false, url);
+                } else if (cmd === 'formatBlock') {
+                    document.execCommand('formatBlock', false, 'blockquote');
+                } else {
+                    document.execCommand(cmd, false, null);
+                }
+            });
+        });
+    });
+
+    function syncEditorToTextarea(e, editorId, textareaId) {
+        var editor = document.getElementById(editorId);
+        var textarea = document.getElementById(textareaId);
+        if (!editor || !textarea) return;
+        var value = sanitizeTelegramHtml(editor.innerHTML).trim();
+        if (!value) {
+            e.preventDefault();
+            toast('Введите текст сообщения', 'warn');
+            return;
+        }
+        textarea.value = value;
+    }
+
+    var createModalEl = document.getElementById('createModal');
+    if (createModalEl) {
+        var createForm = createModalEl.querySelector('form');
+        if (createForm) {
+            createForm.addEventListener('submit', function (e) {
+                syncEditorToTextarea(e, 'textEditor', 'text');
+            });
+        }
+        // Clear the editor each time the modal is (re)opened so a cancelled
+        // attempt doesn't leak into the next one.
+        createModalEl.addEventListener('show.bs.modal', function () {
+            var ed = document.getElementById('textEditor');
+            if (ed) ed.innerHTML = '';
+            if (createForm) createForm.reset();
+        });
+    }
+
+    document.getElementById('editForm').addEventListener('submit', function (e) {
+        syncEditorToTextarea(e, 'editTextEditor', 'editText');
+    });
+}());

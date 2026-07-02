@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ru"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дожимы — Pinto Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/public/css/style.css}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="app-nav">
+    <a href="/" class="app-nav-brand">
+        <span class="icon">🤖</span>
+        Pinto Admin
+    </a>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="color:rgba(255,255,255,.45);font-size:13px;" sec:authentication="name"></span>
+        <a th:href="@{/accounts}" id="accountsLink"
+           th:data-accounts-allowed="${isMainUser}"
+           class="btn btn-outline-light btn-sm">
+            <i class="bi bi-people me-1"></i>Учётные записи
+        </a>
+        <a th:href="@{/}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>На главную
+        </a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0" style="font-weight:700;">
+            <i class="bi bi-chat-square-text me-2"></i>Дожимы
+        </h5>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-circle me-1"></i>Добавить дожим
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Категория</label>
+                    <form method="GET" th:action="@{/push-messages}">
+                        <select name="category" class="form-select" onchange="this.form.submit()">
+                            <option value="" th:selected="${selectedCategory == null}">Все категории</option>
+                            <option th:each="c : ${categories}"
+                                    th:value="${c.name()}"
+                                    th:text="${c.text}"
+                                    th:selected="${selectedCategory == c.name()}"></option>
+                        </select>
+                    </form>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Слот</label>
+                    <select id="stageFilter" class="form-select">
+                        <option value="">Все слоты</option>
+                        <option th:each="s : ${stages}" th:value="${s.name()}" th:text="${s.text}"></option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Пол</label>
+                    <select id="genderFilter" class="form-select">
+                        <option value="">Все</option>
+                        <option th:each="g : ${genders}" th:value="${g.name()}" th:text="${g.text}"></option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Стиль</label>
+                    <select id="styleFilter" class="form-select">
+                        <option value="">Все</option>
+                        <option th:each="st : ${styles}" th:value="${st.name()}" th:text="${st.text}"></option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover" id="pushMessagesTable">
+                <thead>
+                <tr>
+                    <th>Категория</th>
+                    <th>Слот</th>
+                    <th>Пол</th>
+                    <th>Стиль</th>
+                    <th>Текст</th>
+                    <th>Кнопка</th>
+                    <th>Медиа</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="m : ${messages}"
+                    th:attr="data-stage=${m.stage},data-gender=${m.gender},data-style=${m.style}">
+                    <td th:text="${T(com.ivanov.pinto_admin.PushCategory).valueOf(m.category).text}"></td>
+                    <td th:text="${T(com.ivanov.pinto_admin.PushStage).valueOf(m.stage).text}"></td>
+                    <td th:text="${m.gender != null ? T(com.ivanov.pinto_admin.PushGender).valueOf(m.gender).text : '—'}"></td>
+                    <td th:text="${m.style != null ? T(com.ivanov.pinto_admin.PushStyle).valueOf(m.style).text : '—'}"></td>
+                    <td th:utext="${m.text}" class="text-preview"></td>
+                    <td th:text="${m.buttonText != null and !#strings.isEmpty(m.buttonText) ? m.buttonText : '—'}"></td>
+                    <td>
+                        <i class="bi bi-image" th:if="${m.media != null and !#strings.isEmpty(m.media)}" title="Медиа задано"></i>
+                        <span th:unless="${m.media != null and !#strings.isEmpty(m.media)}">—</span>
+                    </td>
+                    <td>
+                        <span class="badge" th:classappend="${m.enabled} ? 'bg-success' : 'bg-secondary'"
+                              th:text="${m.enabled} ? 'Вкл' : 'Выкл'"></span>
+                    </td>
+                    <td style="text-align:right;white-space:nowrap;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-push"
+                                data-bs-toggle="modal" data-bs-target="#editModal"
+                                th:data-id="${m.id}"
+                                th:data-category="${m.category}"
+                                th:data-stage="${m.stage}"
+                                th:data-gender="${m.gender}"
+                                th:data-style="${m.style}"
+                                th:data-text="${m.text}"
+                                th:data-media="${m.media}"
+                                th:data-button-text="${m.buttonText}"
+                                th:data-button-payload="${m.buttonPayload}"
+                                th:data-enabled="${m.enabled}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <form th:action="@{/push-messages/{id}/delete(id=${m.id})}" method="POST"
+                              class="del-push-form" style="display:inline;">
+                            <input type="hidden" name="redirectCategory" th:value="${selectedCategory}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Modal: Create push message ──────────────────────────────────────────── -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius:12px;border:none;">
+            <form th:action="@{/push-messages/create}" method="POST">
+                <input type="hidden" name="redirectCategory" th:value="${selectedCategory}">
+                <div class="modal-header" style="border-bottom:1px solid var(--border);">
+                    <h6 class="modal-title fw-bold">
+                        <i class="bi bi-plus-circle me-2"></i>Новый дожим
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Категория</label>
+                            <select name="category" class="form-select" required>
+                                <option th:each="c : ${categories}" th:value="${c.name()}" th:text="${c.text}"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Слот</label>
+                            <select name="stage" class="form-select" required>
+                                <option th:each="s : ${stages}" th:value="${s.name()}" th:text="${s.text}"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Пол</label>
+                            <select name="gender" class="form-select">
+                                <option value="">— любой / не применимо —</option>
+                                <option th:each="g : ${genders}" th:value="${g.name()}" th:text="${g.text}"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Стиль</label>
+                            <select name="style" class="form-select">
+                                <option value="">— любой / не применимо —</option>
+                                <option th:each="st : ${styles}" th:value="${st.name()}" th:text="${st.text}"></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Текст</label>
+                        <div class="btn-group btn-group-sm rte-toolbar mb-1" data-editor="textEditor" role="group">
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Жирный"><i class="bi bi-type-bold"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="Курсив"><i class="bi bi-type-italic"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="underline" title="Подчёркнутый"><i class="bi bi-type-underline"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="strikeThrough" title="Зачёркнутый"><i class="bi bi-type-strikethrough"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="createLink" title="Ссылка"><i class="bi bi-link-45deg"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="formatBlock" title="Цитата"><i class="bi bi-blockquote-left"></i></button>
+                        </div>
+                        <div id="textEditor" class="form-control rte-editor" contenteditable="true"></div>
+                        <textarea name="text" id="text" class="d-none"></textarea>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Медиа (file_id)</label>
+                            <input type="text" name="media" class="form-control" placeholder="Telegram file_id, необязательно">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Текст кнопки</label>
+                            <input type="text" name="buttonText" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Callback кнопки</label>
+                            <input type="text" name="buttonPayload" class="form-control" placeholder="напр. FIRSTPAY">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="enabled" value="on" id="createEnabled" checked>
+                                <label class="form-check-label" for="createEnabled">Включён</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--border);">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check2 me-1"></i>Создать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Edit push message ────────────────────────────────────────────── -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius:12px;border:none;">
+            <form id="editForm" method="POST">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <input type="hidden" id="editId" name="id">
+                <input type="hidden" name="redirectCategory" th:value="${selectedCategory}">
+                <div class="modal-header" style="border-bottom:1px solid var(--border);">
+                    <h6 class="modal-title fw-bold">
+                        <i class="bi bi-pencil me-2"></i>Редактирование дожима
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Категория</label>
+                            <select id="editCategory" name="category" class="form-select" required>
+                                <option th:each="c : ${categories}" th:value="${c.name()}" th:text="${c.text}"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Слот</label>
+                            <select id="editStage" name="stage" class="form-select" required>
+                                <option th:each="s : ${stages}" th:value="${s.name()}" th:text="${s.text}"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Пол</label>
+                            <select id="editGender" name="gender" class="form-select">
+                                <option value="">— любой / не применимо —</option>
+                                <option th:each="g : ${genders}" th:value="${g.name()}" th:text="${g.text}"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Стиль</label>
+                            <select id="editStyle" name="style" class="form-select">
+                                <option value="">— любой / не применимо —</option>
+                                <option th:each="st : ${styles}" th:value="${st.name()}" th:text="${st.text}"></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Текст</label>
+                        <div class="btn-group btn-group-sm rte-toolbar mb-1" data-editor="editTextEditor" role="group">
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Жирный"><i class="bi bi-type-bold"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="Курсив"><i class="bi bi-type-italic"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="underline" title="Подчёркнутый"><i class="bi bi-type-underline"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="strikeThrough" title="Зачёркнутый"><i class="bi bi-type-strikethrough"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="createLink" title="Ссылка"><i class="bi bi-link-45deg"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-cmd="formatBlock" title="Цитата"><i class="bi bi-blockquote-left"></i></button>
+                        </div>
+                        <div id="editTextEditor" class="form-control rte-editor" contenteditable="true"></div>
+                        <textarea id="editText" name="text" class="d-none"></textarea>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Медиа (file_id)</label>
+                            <input type="text" id="editMedia" name="media" class="form-control" placeholder="Telegram file_id, необязательно">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Текст кнопки</label>
+                            <input type="text" id="editButtonText" name="buttonText" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Callback кнопки</label>
+                            <input type="text" id="editButtonPayload" name="buttonPayload" class="form-control" placeholder="напр. FIRSTPAY">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="enabled" value="on" id="editEnabled">
+                                <label class="form-check-label" for="editEnabled">Включён</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--border);">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check2 me-1"></i>Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="accessDeniedModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Доступ ограничен</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Раздел «Учётные записи» доступен только главным администраторам.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/public/js/app.js}"></script>
+<script th:if="${param.pmError != null}">
+    toast('Не удалось сохранить — возможно, такая комбинация категория+слот+пол+стиль уже существует', 'err');
+</script>
+</body>
+</html>

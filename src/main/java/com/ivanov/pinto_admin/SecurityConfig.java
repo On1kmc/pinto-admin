@@ -19,6 +19,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // управление учётными записями и правами бота — только главные администраторы
                         .requestMatchers("/accounts/**").hasRole("MAIN")
+                        // управление дожимами — только главные администраторы
+                        .requestMatchers("/push-messages/**").hasRole("MAIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/setrights").hasRole("MAIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users/changestatus").hasRole("MAIN")
                         // API и всё остальное — любая роль
